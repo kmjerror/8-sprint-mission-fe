@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BestProductList from '../components/BestProductList';
@@ -6,20 +7,21 @@ import ProductList from '../components/ProductList';
 import Pagination from '../components/Pagination';
 import { getProductList } from '../services/productService';
 import useResponsive from '../hooks/useResponsive';
+import '../styles/homepage.css';
 import '../styles/home.css';
 import searchIcon from '../assets/search-icon.svg';
 
 
 const LIST_PAGE_SIZE = {
-  desktop: 20,
-  tablet: 12,
-  mobile: 10,
+  desktop: 10,
+  tablet: 6,
+  mobile: 4,
 };
 
 const BEST_PAGE_SIZE = {
-  desktop: 8,
-  tablet: 4,
-  mobile: 2,
+  desktop: 4,
+  tablet: 2,
+  mobile: 1,
 };
 
 
@@ -27,21 +29,25 @@ function HomePage() {
   const breakpoint = useResponsive();
   const [products, setProducts] = useState([]);
   const [bestProducts, setBestProducts] = useState([]);
-  const [sort, setSort] = useState('recent');
+  const [orderBy, setOrderBy] = useState('recent');
+  const [rawKeyword, setRawKeyword] = useState('');
   const [keyword, setKeyword] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const listPageSize = LIST_PAGE_SIZE[breakpoint];
-  const bestPageSize = BEST_PAGE_SIZE[breakpoint];
+  const listPageSize = LIST_PAGE_SIZE[breakpoint] ?? LIST_PAGE_SIZE.mobile;
+  const bestPageSize = BEST_PAGE_SIZE[breakpoint] ?? BEST_PAGE_SIZE.mobile;
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setKeyword(rawKeyword.trim());
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [rawKeyword]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [breakpoint]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [sort, keyword]);
+  }, [breakpoint, orderBy, keyword]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,11 +57,11 @@ function HomePage() {
         const data = await getProductList({
           page: currentPage,
           pageSize: listPageSize,
-          sort,
+          orderBy,
           keyword,
         });
         if (!cancelled) {
-          setProducts(data.products || []);
+          setProducts(data?.products || []);
           setTotalPages(data.totalPages || 1);
         }
       } catch (err) {
@@ -64,7 +70,7 @@ function HomePage() {
     })();
 
     return () => { cancelled = true; };
-  }, [currentPage, listPageSize, sort, keyword]);
+  }, [currentPage, listPageSize, orderBy, keyword]);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,11 +80,11 @@ function HomePage() {
         const data = await getProductList({
           page: 1,
           pageSize: bestPageSize,
-          sort: 'favorite',
+          orderBy: 'favorite',
           keyword: '',
         });
         if (!cancelled) {
-          setBestProducts(data.products || []);
+          setBestProducts(data?.products || []);
         }
       } catch (err) {
         console.error('[베스트 상품 불러오기 실패]', err);
@@ -91,8 +97,10 @@ function HomePage() {
   return (
     <>
       <Header />
-      <main>
-        <BestProductList products={bestProducts} />
+      <main className="home-page">
+        <section className="best-section">
+          <BestProductList products={bestProducts} />
+        </section>
 
         <div className="product-section-header">
           <h2 className="section-title">판매 중인 상품</h2>
@@ -102,18 +110,18 @@ function HomePage() {
               <img src={searchIcon} alt="검색 아이콘" className="search-icon" />
               <input
                 type="text"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
+                value={rawKeyword}
+                onChange={(e) => setRawKeyword(e.target.value)}
                 placeholder="검색할 상품을 입력해주세요"
                 className="search-input"
               />
             </div>
 
-            <button className="register-button">상품 등록하기</button>
+            <Link to="/registration" className="register-button">상품 등록하기</Link>
 
             <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
+              value={orderBy}
+              onChange={(e) => setOrderBy(e.target.value)}
               className="sort-select"
             >
               <option value="recent">최신순</option>
@@ -122,15 +130,17 @@ function HomePage() {
           </div>
         </div>
 
-        <div className="product-list-wrapper">
-          <ProductList products={products} />
-        </div>
+        <section className="products-section">
+            <ProductList products={products} />
 
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => setCurrentPage(page)}
-        />
+          <div className="pagination-host">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        </section>
       </main>
       <Footer />
     </>
